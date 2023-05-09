@@ -16,6 +16,8 @@ SmartPilot consists of several steps:
 To install the required packages for SmartPilot, run the following command:
 `pip install -r requirements.txt`
 
+Add your OpenAI API key to the `OPENAI_API_KEY` environment variable or directly in `main.py`: 'openai_api_key = "YOUR_OPENAI_API_KEY_HERE"'
+
 ## Usage
 
 To use SmartPilot, run `main.py` in your terminal:
