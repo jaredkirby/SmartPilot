@@ -31,18 +31,16 @@ chat_4_15 = ChatOpenAI(model="gpt-4", temperature=1.5,
 def generate_multiple_initial_answers(question, n):
     answer_list = []
 
-    answer_sys_prompt = PromptTemplate(
-        template='''
+    answer_sys_prompt = '''
 You are AnswerPilot, a large language model trained by OpenAI and prompt
 engineered by Jared Kirby.
 Your task is to provide detailed, step-by-step answers to questions.
 Use reliable sources, do not fabricate information, and cite your sources when possible.
 If unsure of an answer, express that you do not know.
 Remember, the goal is to produce high-quality, reliable, and accurate responses.
-''')
-
-    answer_sys_message_prompt = SystemMessagePromptTemplate(
-        prompt=answer_sys_prompt)
+'''
+    answer_sys_message_prompt = SystemMessagePromptTemplate.from_template(
+        answer_sys_prompt)
 
     answer_human_prompt = PromptTemplate(
         template='''
@@ -52,15 +50,14 @@ Question: Can you provide a step-by-step method to solve the following problem?
     answer_human_message_prompt = HumanMessagePromptTemplate(
         prompt=answer_human_prompt)
 
-    answer_ai_prompt = PromptTemplate(
-        template='''
+    answer_ai_prompt = '''
 Sure, let's break down the problem and work through it step by step to arrive
 at the correct solution.
 
 Here are the steps: ...
-''')
-    answer_ai_message_prompt = AIMessagePromptTemplate(
-        prompt=answer_ai_prompt)
+'''
+    answer_ai_message_prompt = AIMessagePromptTemplate.from_template(
+        answer_ai_prompt)
 
     answer_prompt = ChatPromptTemplate.from_messages(
         [answer_sys_message_prompt, answer_human_message_prompt,
@@ -77,17 +74,16 @@ Here are the steps: ...
 
 
 def analyze_answers(question, answer_list):
-    analyze_sys_prompt = PromptTemplate(
-        template='''
+    analyze_sys_prompt = '''
 You are AnalyzePilot, a large language model trained by OpenAI and prompt
 engineered by Jared Kirby. Your task is to analyze the answers provided, 
 identifying the flaws and strengths in logic for each answer option. 
 Remember to use a systematic, step-by-step approach to ensure all aspects are 
 considered. Do not fabricate information and if unsure of an answer, it's okay to say
 'I don't know.' Present your response in a structured format, as outlined below.
-''')
-    analyze_sys_message_prompt = SystemMessagePromptTemplate(
-        prompt=analyze_sys_prompt)
+'''
+    analyze_sys_message_prompt = SystemMessagePromptTemplate.from_template(
+        analyze_sys_prompt)
 
     analyze_human_prompt = PromptTemplate(
         template='''
@@ -125,17 +121,16 @@ Original Question: "Original Question"
 
 
 def resolve_answers(question, analysis):
-    resolve_sys_prompt = PromptTemplate(
-        template='''
+    resolve_sys_prompt = '''
 You are ResolvePilot, a large language model trained by OpenAI and prompt
 engineered by Jared Kirby. Your task is to analyze the question and answer 
 data provided to you, and resolve each answer by addressing the flaws and 
 enhancing the strengths identified. Remember to work systematically and 
 step by step, using reliable information. If unsure of an answer, it's 
 okay to say 'I don't know.' The response should be formatted as outlined below.
-''')
-    resolve_sys_message_prompt = SystemMessagePromptTemplate(
-        prompt=resolve_sys_prompt)
+'''
+    resolve_sys_message_prompt = SystemMessagePromptTemplate.from_template(
+        resolve_sys_prompt)
 
     resolve_human_prompt = PromptTemplate(
         template='''
@@ -153,7 +148,7 @@ Original Question: "Original Question"
     - Updated Answer 2: "Updated Answer"
     - Updated Answer 3: "Updated Answer"
     - ...
-    ''', input_variables=["question", "answer_list"])
+    ''', input_variables=["question", "analysis"])
     resolve_human_message_prompt = HumanMessagePromptTemplate(
         prompt=resolve_human_prompt)
 
@@ -167,17 +162,16 @@ Original Question: "Original Question"
 
 
 def select_answer(question, resolved_answers):
-    select_sys_prompt = PromptTemplate(
-        template='''
+    select_sys_prompt = '''
 You are SelectPilot, a large language model trained by OpenAI and prompt
 engineered by Jared Kirby. Your task is to analyze the original question 
 and the list of answers provided, and then select the best answer based 
 on the information given. Remember to work systematically and step by step, 
 using reliable information. If unsure of an answer, it's okay to say 'I don't know.' 
 The response should be formatted as outlined below.
-''')
-    select_sys_message_prompt = SystemMessagePromptTemplate(
-        prompt=select_sys_prompt)
+'''
+    select_sys_message_prompt = SystemMessagePromptTemplate.from_template(
+        select_sys_prompt)
 
     select_human_prompt = PromptTemplate(
         template='''
@@ -191,7 +185,7 @@ Answer List:
 Format your response as follows:
 Original Question: "Original Question"
     - Selected Answer: "Selected Answer"
-    ''', input_variables=["question", "answer_list"])
+    ''', input_variables=["question", "resolved_answers"])
     select_human_message_prompt = HumanMessagePromptTemplate(
         prompt=select_human_prompt)
 
