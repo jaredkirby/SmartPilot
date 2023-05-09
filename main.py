@@ -1,3 +1,4 @@
+from langchain.chains import ChatOpenAI
 from langchain.chains import LLMChain
 from langchain.prompts import (
     ChatPromptTemplate,
@@ -6,18 +7,24 @@ from langchain.prompts import (
     HumanMessagePromptTemplate,
     AIMessagePromptTemplate
 )
-from utils import (
-    chat_35_0,
-    chat_35_07,
-    chat_35_05,
-    chat_35_1,
-    chat_4_07,
-    chat_4_05,
-    chat_4_0,
-    chat_4_2,
-    chat_4_1,
-    chat_4_15
-)
+
+openai_api_key = 'YOUR_OPENAI_API_KEY_HERE'
+chat_35_0 = ChatOpenAI(temperature=0, openai_api_key=openai_api_key)
+chat_35_07 = ChatOpenAI(temperature=0.7, openai_api_key=openai_api_key)
+chat_35_05 = ChatOpenAI(temperature=0.5, openai_api_key=openai_api_key)
+chat_35_1 = ChatOpenAI(temperature=1, openai_api_key=openai_api_key)
+chat_4_07 = ChatOpenAI(model="gpt-4", temperature=0.7,
+                       openai_api_key=openai_api_key, request_timeout=240)
+chat_4_05 = ChatOpenAI(model="gpt-4", temperature=0.5,
+                       openai_api_key=openai_api_key, request_timeout=240)
+chat_4_0 = ChatOpenAI(model="gpt-4", temperature=0,
+                      openai_api_key=openai_api_key, request_timeout=240)
+chat_4_2 = ChatOpenAI(model="gpt-4", temperature=2,
+                      openai_api_key=openai_api_key, request_timeout=240)
+chat_4_1 = ChatOpenAI(model="gpt-4", temperature=1,
+                      openai_api_key=openai_api_key, request_timeout=240)
+chat_4_15 = ChatOpenAI(model="gpt-4", temperature=1.5,
+                       openai_api_key=openai_api_key, request_timeout=240)
 
 
 def generate_multiple_initial_answers(question, n):
