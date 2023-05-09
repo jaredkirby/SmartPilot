@@ -1,3 +1,4 @@
 .env
 .vscode
 utils.py
+__pycache__
