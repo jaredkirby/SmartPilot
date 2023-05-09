@@ -14,24 +14,20 @@ SmartPilot consists of several steps:
 ## Installation
 
 To install the required packages for SmartPilot, run the following command:
-
-bashCopy code
-
 `pip install -r requirements.txt`
 
 ## Usage
 
 To use SmartPilot, run `main.py` in your terminal:
-
-bashCopy code
-
 `python main.py`
 
 You will be prompted to enter your question and the number of initial answers you want. After providing the necessary input, the program will generate answers, analyze them, resolve them, and finally select the best answer.
 
 ## Credits
 
-This program was inspired by the ideas discussed in the AI Explained YouTube Channel's video on SmartGPT: [https://youtu.be/wVzuvf9D9BU](https://youtu.be/wVzuvf9D9BU)
+This program was inspired by the ideas discussed in the AI Explained YouTube Channel's video on SmartGPT(https://youtu.be/wVzuvf9D9BU)
+
+Also uses [LangChain](https://github.com/hwchase17/langchain), a Python library for chaining together multiple language models.
 
 ## License
 
