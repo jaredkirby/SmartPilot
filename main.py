@@ -1,71 +1,46 @@
-from langchain.chains import ChatOpenAI
+from langchain.chains.router import MultiPromptChain
+from langchain.chat_models import ChatOpenAI
 from langchain.chains import LLMChain
 from langchain.prompts import (
     ChatPromptTemplate,
     PromptTemplate,
     SystemMessagePromptTemplate,
     HumanMessagePromptTemplate,
-    AIMessagePromptTemplate
+    # AIMessagePromptTemplate
 )
+from secret import OPENAI_API_KEY
 
-openai_api_key = 'YOUR_OPENAI_API_KEY_HERE'
+openai_api_key = OPENAI_API_KEY
 chat_35_0 = ChatOpenAI(temperature=0, openai_api_key=openai_api_key)
 chat_35_07 = ChatOpenAI(temperature=0.7, openai_api_key=openai_api_key)
 chat_35_05 = ChatOpenAI(temperature=0.5, openai_api_key=openai_api_key)
 chat_35_1 = ChatOpenAI(temperature=1, openai_api_key=openai_api_key)
-chat_4_07 = ChatOpenAI(model="gpt-4", temperature=0.7,
+chat_4_07 = ChatOpenAI(model_name="gpt-4", temperature=0.7,
                        openai_api_key=openai_api_key, request_timeout=240)
-chat_4_05 = ChatOpenAI(model="gpt-4", temperature=0.5,
+chat_4_05 = ChatOpenAI(model_name="gpt-4", temperature=0.5,
                        openai_api_key=openai_api_key, request_timeout=240)
-chat_4_0 = ChatOpenAI(model="gpt-4", temperature=0,
+chat_4_0 = ChatOpenAI(model_name="gpt-4", temperature=0,
                       openai_api_key=openai_api_key, request_timeout=240)
-chat_4_2 = ChatOpenAI(model="gpt-4", temperature=2,
+chat_4_2 = ChatOpenAI(model_name="gpt-4", temperature=2,
                       openai_api_key=openai_api_key, request_timeout=240)
-chat_4_1 = ChatOpenAI(model="gpt-4", temperature=1,
+chat_4_1 = ChatOpenAI(model_name="gpt-4", temperature=1,
                       openai_api_key=openai_api_key, request_timeout=240)
-chat_4_15 = ChatOpenAI(model="gpt-4", temperature=1.5,
+chat_4_15 = ChatOpenAI(model_name="gpt-4", temperature=1.5,
                        openai_api_key=openai_api_key, request_timeout=240)
 
 
 def generate_multiple_initial_answers(question, n):
+    from infos import prompt_infos
     answer_list = []
 
-    answer_sys_prompt = '''
-You are AnswerPilot, a large language model trained by OpenAI and prompt
-engineered by Jared Kirby.
-Your task is to provide detailed, step-by-step answers to questions.
-Use reliable sources, do not fabricate information, and cite your sources when possible.
-If unsure of an answer, express that you do not know.
-Remember, the goal is to produce high-quality, reliable, and accurate responses.
-'''
-    answer_sys_message_prompt = SystemMessagePromptTemplate.from_template(
-        answer_sys_prompt)
+    answer_chain = MultiPromptChain.from_prompts(
+        llm=chat_35_1, prompt_infos=prompt_infos, verbose=True)
 
-    answer_human_prompt = PromptTemplate(
-        template='''
-Question: Can you provide a step-by-step method to solve the following problem?
-{question}
-    ''', input_variables=["question"])
-    answer_human_message_prompt = HumanMessagePromptTemplate(
-        prompt=answer_human_prompt)
-
-    answer_ai_prompt = '''
-Sure, let's break down the problem and work through it step by step to arrive
-at the correct solution.
-
-Here are the steps: ...
-'''
-    answer_ai_message_prompt = AIMessagePromptTemplate.from_template(
-        answer_ai_prompt)
-
-    answer_prompt = ChatPromptTemplate.from_messages(
-        [answer_sys_message_prompt, answer_human_message_prompt,
-         answer_ai_message_prompt])
-    answer_chain = LLMChain(
-        verbose=True, llm=chat_35_1, prompt=answer_prompt)
+    # answer_chain = LLMChain(
+    #    verbose=True, llm=chat_35_1, prompt=answer_prompt)
 
     for i in range(n):
-        answer = answer_chain.run({'question': question})
+        answer = answer_chain.run({'input': question})
         answer = answer.split("\n")
         answer_list.append(answer)
 
