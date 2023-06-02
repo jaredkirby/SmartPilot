@@ -1,6 +1,5 @@
 .env
 .vscode
 secret.py
-utils.py
 __pycache__
 ProcessOutline.jpg
