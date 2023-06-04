@@ -9,15 +9,15 @@ from langchain.prompts import (
     AIMessagePromptTemplate,
 )
 from utils import (
-    chat_35_1,
+    chat_35_1_s,
     chat_35_0,
-    chat_4_0,
+    chat_4_0_s,
 )
 
-intial_llm = chat_35_1
-analyze_llm = chat_4_0
-resolve_llm = chat_4_0
-select_llm = chat_4_0
+intial_llm = chat_35_1_s
+analyze_llm = chat_4_0_s
+resolve_llm = chat_4_0_s
+select_llm = chat_4_0_s
 
 
 async def generate_multiple_initial_answers(question, n, llm=intial_llm):
@@ -36,8 +36,10 @@ Remember, the goal is to produce high-quality, reliable, and accurate responses.
 
     answer_human_prompt = PromptTemplate(
         template="""
-Question: Can you provide a step-by-step method to solve the following problem?
+Can you provide a step-by-step method to solve the following problem?
 {question}
+
+Please format your response as an outline writen in the markdown language.
     """,
         input_variables=["question"],
     )
@@ -95,7 +97,7 @@ Original Question: {question}
 Answer List:
 {answer_list}
 
-Format your response as follows:
+Format your response as follows writen in the markdown language:
 Original Question: "Original Question"
 - Answer Option 1: "Answer Option 1"
     - Identified Flaws: "Flaw 1", "Flaw 2", "Flaw 3, etc."
@@ -148,7 +150,7 @@ Original Question: {question}
 Answer List:
 {analysis}
 
-Format your response as follows:
+Format your response as follows writen in the markdown language:
 Original Question: "Original Question"
     - Updated Answer 1: "Updated Answer"
     - Updated Answer 2: "Updated Answer"
@@ -195,7 +197,7 @@ Format your response as follows:
 Original Question: "Original Question"
     - Selected Answer: "Selected Answer"
 
-Do NOT summarize the aswer in your response.
+Do NOT summarize the answer in your response.
     """,
         input_variables=["question", "resolved_answers"],
     )
