@@ -4,3 +4,4 @@ secret.py
 __pycache__
 mainOld.py
 mainLitTest.py
+.streamlit

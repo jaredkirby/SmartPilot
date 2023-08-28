@@ -1,95 +1,92 @@
 import asyncio
+import streamlit as st
 
-from langchain.chains import LLMChain
 from langchain.prompts import (
     ChatPromptTemplate,
-    PromptTemplate,
     SystemMessagePromptTemplate,
     HumanMessagePromptTemplate,
     AIMessagePromptTemplate,
 )
-from utils import (
-    chat_35_1_s,
-    chat_35_0,
-    chat_4_0_s,
+from langchain.chat_models import ChatOpenAI
+
+from prompt.answer import (
+    ANSWER_SYS,
+    ANSWER_AI,
+)
+from prompt.analyze import (
+    ANALYZE_SYS,
+)
+from prompt.resolve import (
+    RESOLVE_SYS,
+)
+from prompt.select import (
+    SELECT_SYS,
 )
 
-intial_llm = chat_35_1_s
-analyze_llm = chat_4_0_s
-resolve_llm = chat_4_0_s
-select_llm = chat_4_0_s
+#from dotenv import load_dotenv
+openai_api_key = st.secrets["OPENAI_API_KEY"]
 
 
-async def generate_multiple_initial_answers(question, n, llm=intial_llm):
-    answer_list = []
-
-    answer_sys_prompt = """
-You are AnswerPilot, a large language model trained by OpenAI and prompt
-engineered by Jared Kirby.
-Your task is to provide detailed, step-by-step answers to the question.
-Use reliable sources, do not fabricate information.
-Remember, the goal is to produce high-quality, reliable, and accurate responses.
-"""
-    answer_sys_message_prompt = SystemMessagePromptTemplate.from_template(
-        answer_sys_prompt
+async def generate_multiple_initial_answers(question, n):
+    print("Getting Initial Answers...")
+    llm = ChatOpenAI(
+        model="gpt-4",
+        temperature=1.0,
+        openai_api_key=openai_api_key,
     )
 
-    answer_human_prompt = PromptTemplate(
-        template="""
+    answer_list = []
+
+    sys_template = ANSWER_SYS
+    answer_sys_prompt = SystemMessagePromptTemplate.from_template(sys_template)
+    
+    human_template= '''
 Can you provide a step-by-step method to solve the following problem?
 {question}
 
-Please format your response as an outline writen in the markdown language.
-    """,
-        input_variables=["question"],
-    )
-    answer_human_message_prompt = HumanMessagePromptTemplate(prompt=answer_human_prompt)
+Please format your response as an outline written in the markdown language.
+'''
+    answer_human_prompt = HumanMessagePromptTemplate.from_template(human_template)
 
-    answer_ai_prompt = """
-Sure, let's break down the problem and work through it step by step to arrive
-at the correct solution.
-
-Here are the steps: ...
-"""
-    answer_ai_message_prompt = AIMessagePromptTemplate.from_template(answer_ai_prompt)
+    ai_template = ANSWER_AI
+    answer_ai_prompt = AIMessagePromptTemplate.from_template(ai_template)
 
     answer_prompt = ChatPromptTemplate.from_messages(
         [
-            answer_sys_message_prompt,
-            answer_human_message_prompt,
-            answer_ai_message_prompt,
+            answer_sys_prompt,
+            answer_human_prompt,
+            answer_ai_prompt,
         ]
     )
-    answer_chain = LLMChain(verbose=True, llm=llm, prompt=answer_prompt)
+    
+    formatted_prompt = answer_prompt.format_prompt(
+        question=question,
+    ).to_messages()
 
-    async def async_generate_answer(chain, question):
-        answer = await chain.arun({"question": question})
-        answer = answer.split("\n")
+    async def async_generate_answer():
+        result = await asyncio.get_event_loop().run_in_executor(None, llm, formatted_prompt)
+        answer = result.content.split("\n")
         return answer
 
-    tasks = [async_generate_answer(answer_chain, question) for _ in range(n)]
+    tasks = [async_generate_answer() for _ in range(n)]
     answer_list = await asyncio.gather(*tasks)
     flat_answer_list = [answer for sublist in answer_list for answer in sublist]
     answer_list = flat_answer_list
-
     return answer_list
 
 
-def analyze_answers(question, answer_list, llm=analyze_llm):
-    analyze_sys_prompt = """
-You are AnalyzePilot, a large language model trained by OpenAI and prompt
-engineered by Jared Kirby. Your task is to analyze the answers provided, 
-identifying the flaws and strengths in logic for each answer option. 
-Remember to use a systematic, step-by-step approach to ensure all aspects are 
-considered. Do NOT summarize the provided Asnwer List in your response.
-Present your response in a structured format, as outlined below.
-"""
-    analyze_sys_message_prompt = SystemMessagePromptTemplate.from_template(
-        analyze_sys_prompt
+def analyze_answers(question, answer_list):
+    print("Analyzing Initial Answers...")
+    llm = ChatOpenAI(
+        model="gpt-4",
+        temperature=0.0,
+        openai_api_key=openai_api_key,
     )
 
-    analyze_human_prompt = PromptTemplate(
-        template="""
+    sys_template = ANALYZE_SYS
+    analyze_sys_prompt = SystemMessagePromptTemplate.from_template(sys_template)
+
+    analyze_template = '''
 As an AI trained on a broad range of information, please analyze the following answers 
 for their logic, strengths, and weaknesses:
 Original Question: {question}
@@ -97,7 +94,7 @@ Original Question: {question}
 Answer List:
 {answer_list}
 
-Format your response as follows writen in the markdown language:
+Format your response as follows written in the markdown language:
 Original Question: "Original Question"
 - Answer Option 1: "Answer Option 1"
     - Identified Flaws: "Flaw 1", "Flaw 2", "Flaw 3, etc."
@@ -111,37 +108,37 @@ Original Question: "Original Question"
 - ...
 
 Do NOT summarize the provided Answer List in your response.
-    """,
-        input_variables=["question", "answer_list"],
-    )
-    analyze_human_message_prompt = HumanMessagePromptTemplate(
-        prompt=analyze_human_prompt
-    )
+    '''
+    analyze_human_prompt = HumanMessagePromptTemplate.from_template(analyze_template)
 
     analyze_prompt = ChatPromptTemplate.from_messages(
-        [analyze_sys_message_prompt, analyze_human_message_prompt]
+        [
+            analyze_sys_prompt, 
+            analyze_human_prompt,
+        ]
     )
-    analyze_chain = LLMChain(verbose=True, llm=llm, prompt=analyze_prompt)
-    analysis = analyze_chain.run({"question": question, "answer_list": answer_list})
-    analysis = analysis.split("\n")
+    formatted_prompt = analyze_prompt.format_prompt(
+        question=question,
+        answer_list=answer_list,
+    ).to_messages()
+    llm = llm
+    result = llm(formatted_prompt)
+
+    analysis = result.content.split("\n")
     return analysis
 
 
-def resolve_answers(question, analysis, llm=resolve_llm):
-    resolve_sys_prompt = """
-You are ResolvePilot, a large language model trained by OpenAI and prompt
-engineered by Jared Kirby. Your task is to analyze the question and answer 
-data provided to you, and resolve each answer by addressing the flaws and 
-enhancing the strengths identified. Remember to work systematically and 
-step by step, using reliable information. The response should be formatted 
-as outlined below.
-"""
-    resolve_sys_message_prompt = SystemMessagePromptTemplate.from_template(
-        resolve_sys_prompt
+def resolve_answers(question, analysis):
+    print("Resolving Initial Answers Based on Analysis...")
+    llm = ChatOpenAI(
+        model="gpt-4",
+        temperature=0.0,
+        openai_api_key=openai_api_key,
     )
+    sys_template = RESOLVE_SYS
+    resolve_sys_prompt = SystemMessagePromptTemplate.from_template(sys_template)
 
-    resolve_human_prompt = PromptTemplate(
-        template="""
+    human_template = '''
 As an AI trained on a broad range of information, please help me improve the 
 following answers by addressing the flaws and enhancing the strengths, based 
 on the analysis provided:
@@ -150,42 +147,42 @@ Original Question: {question}
 Answer List:
 {analysis}
 
-Format your response as follows writen in the markdown language:
+Format your response as follows written in the markdown language:
 Original Question: "Original Question"
     - Updated Answer 1: "Updated Answer"
     - Updated Answer 2: "Updated Answer"
     - Updated Answer 3: "Updated Answer"
-    - ...
-    """,
-        input_variables=["question", "analysis"],
-    )
-    resolve_human_message_prompt = HumanMessagePromptTemplate(
-        prompt=resolve_human_prompt
-    )
+    - 
+    '''
+    resolve_human_prompt = HumanMessagePromptTemplate.from_template(human_template)
 
     resolve_prompt = ChatPromptTemplate.from_messages(
-        [resolve_sys_message_prompt, resolve_human_message_prompt]
+        [
+            resolve_sys_prompt, 
+            resolve_human_prompt,
+        ]
     )
-    resolve_chain = LLMChain(verbose=True, llm=llm, prompt=resolve_prompt)
-    resolved_answers = resolve_chain.run({"question": question, "analysis": analysis})
-    return resolved_answers
+    formatted_prompt = resolve_prompt.format_prompt(
+        question=question,
+        analysis=analysis,
+    ).to_messages()
+    llm = llm
+    resolved_answers = llm(formatted_prompt)
+    return resolved_answers.content
 
 
-def select_answer(question, resolved_answers, llm=select_llm):
-    select_sys_prompt = """
-You are SelectPilot, a large language model trained by OpenAI and prompt
-engineered by Jared Kirby. Your task is to analyze the original question 
-and the list of answers provided, and then select the best answer based 
-on the information given. Remember to work systematically and step by step, 
-using reliable information.
-The response should be formatted as outlined below.
-"""
-    select_sys_message_prompt = SystemMessagePromptTemplate.from_template(
-        select_sys_prompt
+def select_answer(question, resolved_answers):
+    print("Selecting Best Answer...")
+    llm = ChatOpenAI(
+        model="gpt-4",
+        temperature=0.0,
+        openai_api_key=openai_api_key,
     )
 
-    select_human_prompt = PromptTemplate(
-        template="""
+    sys_template = SELECT_SYS
+    select_sys_prompt = SystemMessagePromptTemplate.from_template(sys_template)
+
+    human_template = '''
 As an AI trained on a broad range of information, please help me select the best 
 answer for the following question from the list of answers:
 Original Question: {question}
@@ -198,19 +195,22 @@ Original Question: "Original Question"
     - Selected Answer: "Selected Answer"
 
 Do NOT summarize the answer in your response.
-    """,
-        input_variables=["question", "resolved_answers"],
-    )
-    select_human_message_prompt = HumanMessagePromptTemplate(prompt=select_human_prompt)
+    '''
+    select_human_prompt = HumanMessagePromptTemplate.from_template(human_template)
 
     select_prompt = ChatPromptTemplate.from_messages(
-        [select_sys_message_prompt, select_human_message_prompt]
+        [
+            select_sys_prompt, 
+            select_human_prompt
+        ]
     )
-    select_chain = LLMChain(verbose=True, llm=llm, prompt=select_prompt)
-    selected_answer = select_chain.run(
-        {"question": question, "resolved_answers": resolved_answers}
-    )
-    return selected_answer
+    formatted_prompt = select_prompt.format_prompt(
+        question=question,
+        resolved_answers=resolved_answers,
+    ).to_messages() 
+    llm = llm
+    selected_answer = llm(formatted_prompt)
+    return selected_answer.content
 
 
 async def main():
