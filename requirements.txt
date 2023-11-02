@@ -1,5 +1,8 @@
 langchain
+langsmith
+langserve
+fastapi
 openai
 tqdm
 python-dotenv
-
+streamlit

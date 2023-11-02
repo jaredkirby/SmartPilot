@@ -1,9 +1,9 @@
 
-# Is it better if the model has access to all generated answers?
-# Or should it only have access to one at a time?
+Is it better if the model has access to all generated answers?
+Or should it only have access to one at a time?
 
-'''
-Step 1: Inital "Question" + "Answer: Let's work this out in a step by step way to be 
+
+Step 1: Initial "Question" + "Answer: Let's work this out in a step by step way to be 
     sure we have the right answer."
 
 Step 2: Send the prompt from step 1 to GPT-4 3x to get 3 different answers. Test with 
@@ -35,7 +35,7 @@ Step 4: Prompt:
     "You are a resolver tasked with the following:
         - Analyze the question and answer data given to you. 
             Take into account the following:
-                - The users origianl question
+                - The users original question
                 - The answer option provided
                 - The identified flaws and strengths of the answer option
         - Resolve the answer by providing a new answer that addresses the flaws and 
@@ -55,4 +55,4 @@ Step 5: Prompt:
         - Respond with the best answer.
     
     Let's work through this in a step by step way to insure we have the best answer.
-'''
+

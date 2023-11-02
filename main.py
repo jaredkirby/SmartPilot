@@ -9,36 +9,189 @@ from langchain.prompts import (
     AIMessagePromptTemplate,
 )
 from langchain.chat_models import ChatOpenAI
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from langchain.chat_models import ChatOpenAI
+from langchain.prompts import PromptTemplate
+from langchain.schema.output_parser import StrOutputParser
+from langchain.schema.runnable import ConfigurableField
+from langchain.schema.runnable import RunnableMap, RunnablePassthrough
+
+from langserve import add_routes
+from operator import itemgetter
 import asyncio
 
-from prompt.system import (
-    ANSWER_SYS,
-    ANSWER_AI,
-    ANALYZE_SYS,
-    RESOLVE_SYS,
-    SELECT_SYS,
+from prompt import (
+    ANSWERS_PROMPT,
+    ANALYZE_PROMPT,
+    RESOLVE_PROMPT,
+    SELECT_PROMPT,
 )
 
-# from dotenv import load_dotenv
 load_dotenv()
 
+app = FastAPI(
+    title="SmartPilot",
+    version="0.3",
+    description="SmartPilot uses LLMs to generate, analyze, and select the best answer to a given question.",
+)
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["*"],
+)
+
+answers_model = ChatOpenAI(temperature=0.5).configurable_alternatives(
+    ConfigurableField(
+        id="llm",
+        name="LLM",
+        description=(
+            "Decide whether to use a high or a low temperature parameter for generating the initial set of answers."
+        ),
+    ),
+    high_temp=ChatOpenAI(temperature=0.9),
+    low_temp=ChatOpenAI(temperature=0.1),
+    default_key="medium_temp",
+)
+
+from langchain.prompts import (
+    ChatPromptTemplate,
+    SystemMessagePromptTemplate,
+    HumanMessagePromptTemplate,
+    AIMessagePromptTemplate,
+)
+from langchain.chat_models import ChatOpenAI
+from langchain.runnables import RunnableMap
+import asyncio
+
+# Assume the necessary prompt templates are defined and available
+model = ChatOpenAI()
+
+
+# Async function to generate multiple initial answers
 async def generate_multiple_initial_answers(question, n):
-    # Create a language model
-    llm = ChatOpenAI(
-        model="gpt-4",
-        temperature=1.0,
+    # Define prompt templates
+    answer_sys_prompt = SystemMessagePromptTemplate.from_template(ANSWER_SYS)
+    answer_human_prompt = HumanMessagePromptTemplate.from_template(ANSWER_HUM)
+    answer_ai_prompt = AIMessagePromptTemplate.from_template(ANSWER_AI)
+
+    # Combine the prompts into a single chain
+    answer_prompt_chain = RunnableMap(
+        {
+            "system_message": answer_sys_prompt,
+            "human_message": answer_human_prompt,
+            "ai_message": answer_ai_prompt,
+        }
     )
+
+    # Define the runnable chain with the model
+    answer_chain = answer_prompt_chain | model
+
+    # Format and invoke the chain asynchronously
+    async def generate_answer():
+        formatted_prompt = {
+            "system_message": {"content": ANSWER_SYS.format(question=question)},
+            "human_message": {"content": ANSWER_HUM.format(question=question)},
+            "ai_message": {"content": ANSWER_AI.format(question=question)},
+        }
+        return await answer_chain.ainvoke(formatted_prompt)
+
+    # Generate multiple answers asynchronously
+    tasks = [generate_answer() for _ in range(n)]
+    answer_list = await asyncio.gather(*tasks)
+
+    # Flatten the list of answers
+    flat_answer_list = [answer.content.split("\n") for answer in answer_list]
+    flat_answer_list = [item for sublist in flat_answer_list for item in sublist]
+    return flat_answer_list
+
+
+# Async function to analyze the answers
+async def analyze_answers(question, answer_list):
+    # Define analysis chain
+    analyze_chain = analyze_sys | analyze_human | model
+    # Format the chat prompt
+    formatted_prompt = {
+        "system_message": {"content": ANALYZE_SYS.format(question=question)},
+        "human_message": {
+            "content": ANALYZE_HUM.format(question=question, answer_list=answer_list)
+        },
+    }
+    # Invoke the analysis chain asynchronously
+    analysis = await analyze_chain.ainvoke(formatted_prompt)
+    return analysis.content.split("\n")
+
+
+# Async function to resolve the answers
+async def resolve_answers(question, analysis):
+    # Define resolution chain
+    resolve_chain = resolve_sys | resolve_human | model
+    # Format the chat prompt
+    formatted_prompt = {
+        "system_message": {"content": RESOLVE_SYS.format(question=question)},
+        "human_message": {
+            "content": RESOLVE_HUM.format(question=question, analysis=analysis)
+        },
+    }
+    # Invoke the resolve chain asynchronously
+    resolved = await resolve_chain.ainvoke(formatted_prompt)
+    return resolved.content.split("\n")
+
+
+# Async function to select the best answer
+async def select_best_answer(question, resolved_answers):
+    # Define selection chain
+    select_chain = select_sys | select_human | model
+    # Format the chat prompt
+    formatted_prompt = {
+        "system_message": {"content": SELECT_SYS.format(question=question)},
+        "human_message": {
+            "content": SELECT_HUM.format(
+                question=question, resolved_answers=resolved_answers
+            )
+        },
+    }
+    # Invoke the select chain asynchronously
+    selected = await select_chain.ainvoke(formatted_prompt)
+    return selected.content
+
+
+# Main async function to orchestrate the process
+async def orchestrate_process(question, n_answers):
+    # 1. Generate Answers
+    answers = await generate_multiple_initial_answers(question, n_answers)
+
+    # 2. Analyze the Answers
+    analysis = await analyze_answers(question, answers)
+
+    # 3. Resolve the Answer Analysis
+    resolved = await resolve_answers(question, analysis)
+
+    # 4. Select the Best Answer
+    best_answer = await select_best_answer(question, resolved)
+
+    return best_answer
+
+
+# Example usage
+question = "Explain the process of photosynthesis."
+number_of_answers = 5
+
+# Run the orchestration async function in an event loop
+asyncio.run(orchestrate_process(question, number_of_answers))
+
+
+async def generate_multiple_initial_answers(question, n, llm=answers_model):
     # Create a list of answers
     answer_list = []
     # Create prompt templates
     answer_sys_prompt = SystemMessagePromptTemplate.from_template(ANSWER_SYS)
-    human_template = """
-Can you provide a step-by-step method to solve the following problem?
-{question}
-
-Please format your response as an outline written in Markdown.
-"""
+    human_template = ANSWER_HUM
     answer_human_prompt = HumanMessagePromptTemplate.from_template(human_template)
     answer_ai_prompt = AIMessagePromptTemplate.from_template(ANSWER_AI)
     answer_prompt = ChatPromptTemplate.from_messages(
@@ -74,35 +227,14 @@ Please format your response as an outline written in Markdown.
     return answer_list
 
 
+# Use function call
 def analyze_answers(question, answer_list):
     llm = ChatOpenAI(
         model="gpt-4",
         temperature=0.0,
     )
     analyze_sys_prompt = SystemMessagePromptTemplate.from_template(ANALYZE_SYS)
-    analyze_template = """ \
-As an AI trained on a broad range of information, please analyze the following answers \
-for their logic, strengths, and weaknesses:
-Original Question: {question}
-
-Answer List:
-{answer_list}
-
-Format your response as follows written in the markdown language:
-Original Question: "Original Question"
-- Answer Option 1: "Answer Option 1"
-    - Identified Flaws: "Flaw 1", "Flaw 2", "Flaw 3, etc."
-    - Identified Strengths: "Strength 1", "Strength 2", "Strength 3, etc."
-- Answer Option 2: "Answer Option 2"
-    - Identified Flaws: "Flaw 1", "Flaw 2", "Flaw 3, etc."
-    - Identified Strengths: "Strength 1", "Strength 2", "Strength 3, etc."
-- Answer Option 3: "Answer Option 3"
-    - Identified Flaws: "Flaw 1", "Flaw 2", "Flaw 3, etc."
-    - Identified Strengths: "Strength 1", "Strength 2", "Strength 3, etc."
-- ...
-
-Do NOT summarize the provided Answer List in your response.
-    """
+    analyze_template = ANALYZE_HUM
     analyze_human_prompt = HumanMessagePromptTemplate.from_template(analyze_template)
     analyze_prompt = ChatPromptTemplate.from_messages(
         [
@@ -127,22 +259,7 @@ def resolve_answers(question, analysis):
         temperature=0.0,
     )
     resolve_sys_prompt = SystemMessagePromptTemplate.from_template(RESOLVE_SYS)
-    human_template = """
-As an AI trained on a broad range of information, please help me improve the 
-following answers by addressing the flaws and enhancing the strengths, based 
-on the analysis provided:
-Original Question: {question}
-
-Answer List:
-{analysis}
-
-Format your response as follows written in the markdown language:
-Original Question: "Original Question"
-    - Updated Answer 1: "Updated Answer"
-    - Updated Answer 2: "Updated Answer"
-    - Updated Answer 3: "Updated Answer"
-    - 
-    """
+    human_template = RESOLVE_HUM
     resolve_human_prompt = HumanMessagePromptTemplate.from_template(human_template)
     resolve_prompt = ChatPromptTemplate.from_messages(
         [
@@ -166,20 +283,7 @@ def select_answer(question, resolved_answers):
         temperature=0.0,
     )
     select_sys_prompt = SystemMessagePromptTemplate.from_template(SELECT_SYS)
-    human_template = """ \
-As an AI trained on a broad range of information, please help me select the best \
-answer for the following question from the list of answers:
-Original Question: {question}
-
-Answer List:
-{resolved_answers}
-
-Format your response as follows:
-Original Question: "Original Question"
-    - Selected Answer: "Selected Answer"
-
-Do NOT summarize the answer in your response.
-    """
+    human_template = SELECT_HUM
     select_human_prompt = HumanMessagePromptTemplate.from_template(human_template)
 
     select_prompt = ChatPromptTemplate.from_messages(
