@@ -13,18 +13,9 @@ from langchain.schema import StrOutputParser
 from langchain.schema.runnable import RunnableMap, RunnablePassthrough
 
 from prompt import (
-    ANSWERS_SYS,
-    ANSWERS_HUM,
-    ANSWERS_AI,
     ANSWERS_PROMPT,
-    ANALYZE_SYS,
-    ANALYZE_HUM,
     ANALYZE_PROMPT,
-    RESOLVE_SYS,
-    RESOLVE_HUM,
     RESOLVE_PROMPT,
-    SELECT_SYS,
-    SELECT_HUM,
     SELECT_PROMPT,
 )
 
@@ -35,17 +26,22 @@ model_parser = ChatOpenAI() | StrOutputParser()
 
 chain_get_answers = ANSWERS_PROMPT | model_parser  # type: ignore
 
-chain_analyze_answers = ANALYZE_PROMPT | model_parser  # type: ignore
-
-chain_resolve_answers = RESOLVE_PROMPT | model_parser  # type: ignore
-
-chain_select_answer = SELECT_PROMPT | model_parser  # type: ignore
-
-chain = (
-    {"question": itemgetter("question"), "answer_list": chain_get_answers}
-    | {"analysis": chain_analyze_answers}
-    | {"resolved_answers": chain_resolve_answers}
-    | chain_select_answer  # type: ignore
+chain_analyze_answers = (
+    {"question": itemgetter("question"), "answer_list": chain_get_answers}  # type: ignore
+    | ANALYZE_PROMPT
+    | model_parser
 )
 
-print(chain.invoke({"question": "What is the meaning of life?"}))
+chain_resolve_answers = (
+    {"question": itemgetter("question"), "analysis": chain_analyze_answers}  # type: ignore
+    | RESOLVE_PROMPT
+    | model_parser
+)
+
+chain_select_answer = (
+    {"question": itemgetter("question"), "resolved_answers": chain_resolve_answers}  # type: ignore
+    | SELECT_PROMPT
+    | model_parser
+)
+
+print(chain_select_answer.invoke({"question": "What is the meaning of life?"}))
