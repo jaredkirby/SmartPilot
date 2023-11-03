@@ -19,7 +19,8 @@ Remember, the goal is to produce high-quality, reliable, and accurate responses.
 ANSWERS_HUM = HumanMessagePromptTemplate.from_template(
     """ \
 Can you provide a step-by-step method to solve the following problem?
-{question}
+
+Problem: {question}
 
 Please format your response as an outline written in Markdown.
 """
@@ -54,7 +55,7 @@ ANALYZE_HUM = HumanMessagePromptTemplate.from_template(
     """ \
 As an AI trained on a broad range of information, please analyze the following answers \
 for their logic, strengths, and weaknesses:
-Original Question: {question}
+Original Question: "{question}"
 
 Answer List:
 {answer_list}
@@ -95,7 +96,7 @@ RESOLVE_HUM = HumanMessagePromptTemplate.from_template(
 As an AI trained on a broad range of information, please help me improve the 
 following answers by addressing the flaws and enhancing the strengths, based 
 on the analysis provided:
-Original Question: {question}
+Original Question: "{question}"
 
 Answer List:
 {analysis}
@@ -127,7 +128,7 @@ SELECT_HUM = HumanMessagePromptTemplate.from_template(
     """ \
 As an AI trained on a broad range of information, please help me select the best \
 answer for the following question from the list of answers:
-Original Question: {question}
+Original Question: "{question}"
 
 Answer List:
 {resolved_answers}
