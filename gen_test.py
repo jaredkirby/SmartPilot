@@ -23,7 +23,7 @@ load_dotenv()
 
 model_parser = ChatOpenAI() | StrOutputParser()
 
-
+# async 'ainvoke' with n calls
 chain_get_answers = ANSWERS_PROMPT | model_parser  # type: ignore
 
 chain_analyze_answers = (
