@@ -23,10 +23,15 @@ from operator import itemgetter
 import asyncio
 
 from prompt import (
-    ANSWERS_PROMPT,
-    ANALYZE_PROMPT,
-    RESOLVE_PROMPT,
-    SELECT_PROMPT,
+    ANSWERS_SYS,
+    ANSWERS_HUM,
+    ANSWERS_AI,
+    ANALYZE_SYS,
+    ANALYZE_HUM,
+    RESOLVE_SYS,
+    RESOLVE_HUM,
+    SELECT_SYS,
+    SELECT_HUM,
 )
 
 load_dotenv()
@@ -66,7 +71,7 @@ from langchain.prompts import (
     AIMessagePromptTemplate,
 )
 from langchain.chat_models import ChatOpenAI
-from langchain.runnables import RunnableMap
+from langchain.schema.runnable import RunnableMap
 import asyncio
 
 # Assume the necessary prompt templates are defined and available
@@ -76,9 +81,9 @@ model = ChatOpenAI()
 # Async function to generate multiple initial answers
 async def generate_multiple_initial_answers(question, n):
     # Define prompt templates
-    answer_sys_prompt = SystemMessagePromptTemplate.from_template(ANSWER_SYS)
-    answer_human_prompt = HumanMessagePromptTemplate.from_template(ANSWER_HUM)
-    answer_ai_prompt = AIMessagePromptTemplate.from_template(ANSWER_AI)
+    answer_sys_prompt = SystemMessagePromptTemplate.from_template(ANSWERS_SYS)
+    answer_human_prompt = HumanMessagePromptTemplate.from_template(ANSWERS_HUM)
+    answer_ai_prompt = AIMessagePromptTemplate.from_template(ANSWERS_AI)
 
     # Combine the prompts into a single chain
     answer_prompt_chain = RunnableMap(
@@ -95,9 +100,9 @@ async def generate_multiple_initial_answers(question, n):
     # Format and invoke the chain asynchronously
     async def generate_answer():
         formatted_prompt = {
-            "system_message": {"content": ANSWER_SYS.format(question=question)},
-            "human_message": {"content": ANSWER_HUM.format(question=question)},
-            "ai_message": {"content": ANSWER_AI.format(question=question)},
+            "system_message": {"content": ANSWERS_SYS.format(question=question)},
+            "human_message": {"content": ANSWERS_HUM.format(question=question)},
+            "ai_message": {"content": ANSWERS_AI.format(question=question)},
         }
         return await answer_chain.ainvoke(formatted_prompt)
 
@@ -113,6 +118,9 @@ async def generate_multiple_initial_answers(question, n):
 
 # Async function to analyze the answers
 async def analyze_answers(question, answer_list):
+    # Define prompt templates
+    analyze_sys_prompt = SystemMessagePromptTemplate.from_template(ANALYZE_SYS)
+    analyze_human_prompt = HumanMessagePromptTemplate.from_template(ANALYZE_HUM)
     # Define analysis chain
     analyze_chain = analyze_sys | analyze_human | model
     # Format the chat prompt

@@ -6,7 +6,7 @@ from langchain.prompts import (
 )
 
 # Generate multiple initial answers
-answers_sys = SystemMessagePromptTemplate.from_template(
+ANSWERS_SYS = SystemMessagePromptTemplate.from_template(
     """ \
 You are AnswerPilot, a large language model trained by OpenAI and prompt \
 engineered by Jared Kirby.
@@ -16,7 +16,7 @@ Remember, the goal is to produce high-quality, reliable, and accurate responses.
 """
 )
 
-answers_human = HumanMessagePromptTemplate.from_template(
+ANSWERS_HUM = HumanMessagePromptTemplate.from_template(
     """ \
 Can you provide a step-by-step method to solve the following problem?
 {question}
@@ -25,7 +25,7 @@ Please format your response as an outline written in Markdown.
 """
 )
 
-answers_ai = AIMessagePromptTemplate.from_template(
+ANSWERS_AI = AIMessagePromptTemplate.from_template(
     """ \
 Sure, let's break down the problem and work through it step by step to arrive \
 at the correct solution.
@@ -35,11 +35,11 @@ Here are the steps:
 )
 
 ANSWERS_PROMPT = ChatPromptTemplate.from_messages(
-    [answers_sys, answers_human, answers_ai]
+    [ANSWERS_SYS, ANSWERS_HUM, ANSWERS_AI]
 )
 
 # Analyze the answers
-analyze_sys = SystemMessagePromptTemplate.from_template(
+ANALYZE_SYS = SystemMessagePromptTemplate.from_template(
     """ \
 You are AnalyzePilot, a large language model trained by OpenAI and prompt \
 engineered by Jared Kirby. Your task is to analyze the answers \
@@ -50,7 +50,7 @@ Present your response in a structured format, as outlined below.
 """
 )
 
-analyze_human = HumanMessagePromptTemplate.from_template(
+ANALYZE_HUM = HumanMessagePromptTemplate.from_template(
     """ \
 As an AI trained on a broad range of information, please analyze the following answers \
 for their logic, strengths, and weaknesses:
@@ -76,10 +76,10 @@ Do NOT summarize the provided Answer List in your response.
     """
 )
 
-ANALYZE_PROMPT = ChatPromptTemplate.from_messages([analyze_sys, analyze_human])
+ANALYZE_PROMPT = ChatPromptTemplate.from_messages([ANALYZE_SYS, ANALYZE_HUM])
 
 # Resolve the answers analysis
-resolve_sys = SystemMessagePromptTemplate.from_template(
+RESOLVE_SYS = SystemMessagePromptTemplate.from_template(
     """ \
 You are ResolvePilot, a large language model trained by OpenAI and prompt \
 engineered by Jared Kirby. Your task is to analyze the question and answer \
@@ -90,7 +90,7 @@ as outlined below.
 """
 )
 
-resolve_human = HumanMessagePromptTemplate.from_template(
+RESOLVE_HUM = HumanMessagePromptTemplate.from_template(
     """ \
 As an AI trained on a broad range of information, please help me improve the 
 following answers by addressing the flaws and enhancing the strengths, based 
@@ -109,10 +109,10 @@ Original Question: "Original Question"
     """
 )
 
-RESOLVE_PROMPT = ChatPromptTemplate.from_messages([resolve_sys, resolve_human])
+RESOLVE_PROMPT = ChatPromptTemplate.from_messages([RESOLVE_SYS, RESOLVE_HUM])
 
 # Select the best answer
-select_sys = SystemMessagePromptTemplate.from_template(
+SELECT_SYS = SystemMessagePromptTemplate.from_template(
     """ \
 You are SelectPilot, a large language model trained by OpenAI and prompt \
 engineered by Jared Kirby. Your task is to analyze the original question \
@@ -123,7 +123,7 @@ The response should be formatted as outlined below.
 """
 )
 
-select_human = HumanMessagePromptTemplate.from_template(
+SELECT_HUM = HumanMessagePromptTemplate.from_template(
     """ \
 As an AI trained on a broad range of information, please help me select the best \
 answer for the following question from the list of answers:
@@ -140,4 +140,4 @@ Do NOT summarize the answer in your response.
     """
 )
 
-SELECT_PROMPT = ChatPromptTemplate.from_messages([select_sys, select_human])
+SELECT_PROMPT = ChatPromptTemplate.from_messages([SELECT_HUM, SELECT_SYS])
