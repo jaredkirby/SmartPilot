@@ -2,15 +2,14 @@ import asyncio
 from dotenv import load_dotenv
 from operator import itemgetter
 
-from langchain.prompts import (
-    ChatPromptTemplate,
-    SystemMessagePromptTemplate,
-    HumanMessagePromptTemplate,
-    AIMessagePromptTemplate,
-)
 from langchain.chat_models import ChatOpenAI
 from langchain.schema import StrOutputParser
-from langchain.schema.runnable import RunnableMap, RunnablePassthrough
+from langchain.schema.runnable import (
+    RunnableMap,
+    RunnablePassthrough,
+    RunnableLambda,
+    RunnableParallel,
+)
 
 from prompt import (
     ANSWERS_PROMPT,
@@ -21,27 +20,22 @@ from prompt import (
 
 load_dotenv()
 
-model_parser = ChatOpenAI() | StrOutputParser()
+answer_model = ChatOpenAI()
+model_parser = ChatOpenAI(temperature=0) | StrOutputParser()
 
-# async 'ainvoke' with n calls
-chain_get_answers = ANSWERS_PROMPT | model_parser  # type: ignore
+n = 3  # Number of answers to generate
 
-chain_analyze_answers = (
-    {"question": itemgetter("question"), "answer_list": chain_get_answers}  # type: ignore
-    | ANALYZE_PROMPT
-    | model_parser
+# Step 1: Generate 'n' answer options
+answer_generator = RunnableMap(
+    {
+        f"answer_{i}": (
+            {"question": RunnablePassthrough()}
+            | ANSWERS_PROMPT
+            | answer_model
+            | StrOutputParser
+        )
+        for i in range(n)  # 'n' is the number of answers to generate
+    }
 )
 
-chain_resolve_answers = (
-    {"question": itemgetter("question"), "analysis": chain_analyze_answers}  # type: ignore
-    | RESOLVE_PROMPT
-    | model_parser
-)
-
-chain_select_answer = (
-    {"question": itemgetter("question"), "resolved_answers": chain_resolve_answers}  # type: ignore
-    | SELECT_PROMPT
-    | model_parser
-)
-
-print(chain_select_answer.invoke({"question": "What is the meaning of life?"}))
+print(answer_generator.invoke({"question": "What is the meaning of life?"}))
