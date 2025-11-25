@@ -46,9 +46,13 @@ class TestGenerateResponse:
     def test_generate_response_calls_api(self, mock_get_client):
         """Test that generate_response calls the OpenAI API correctly."""
         mock_client = MagicMock()
+        mock_message = MagicMock()
+        mock_message.content = "Test response"
+        mock_choice = MagicMock()
+        mock_choice.message = mock_message
         mock_response = MagicMock()
-        mock_response.output_text = "Test response"
-        mock_client.responses.create.return_value = mock_response
+        mock_response.choices = [mock_choice]
+        mock_client.chat.completions.create.return_value = mock_response
         mock_get_client.return_value = mock_client
 
         result = generate_response(
@@ -59,15 +63,19 @@ class TestGenerateResponse:
         )
 
         assert result == "Test response"
-        mock_client.responses.create.assert_called_once()
+        mock_client.chat.completions.create.assert_called_once()
 
     @patch("smartpilot.main.get_client")
     def test_generate_response_with_assistant_prefix(self, mock_get_client):
         """Test that generate_response includes assistant prefix when provided."""
         mock_client = MagicMock()
+        mock_message = MagicMock()
+        mock_message.content = "Test response"
+        mock_choice = MagicMock()
+        mock_choice.message = mock_message
         mock_response = MagicMock()
-        mock_response.output_text = "Test response"
-        mock_client.responses.create.return_value = mock_response
+        mock_response.choices = [mock_choice]
+        mock_client.chat.completions.create.return_value = mock_response
         mock_get_client.return_value = mock_client
 
         generate_response(
@@ -77,11 +85,11 @@ class TestGenerateResponse:
             assistant_prefix="Let me help you",
         )
 
-        call_args = mock_client.responses.create.call_args
-        input_messages = call_args.kwargs["input"]
-        assert len(input_messages) == 3
-        assert input_messages[2]["role"] == "assistant"
-        assert input_messages[2]["content"] == "Let me help you"
+        call_args = mock_client.chat.completions.create.call_args
+        messages = call_args.kwargs["messages"]
+        assert len(messages) == 3
+        assert messages[2]["role"] == "assistant"
+        assert messages[2]["content"] == "Let me help you"
 
 
 class TestAnalyzeAnswers:

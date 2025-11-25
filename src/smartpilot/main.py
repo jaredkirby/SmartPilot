@@ -1,4 +1,4 @@
-"""SmartPilot main module - AI-powered question answering system using OpenAI Responses API."""
+"""SmartPilot main module - AI-powered question answering system using OpenAI Chat Completions API."""
 
 import asyncio
 import os
@@ -39,7 +39,7 @@ def generate_response(
     model: Optional[str] = None,
     assistant_prefix: Optional[str] = None,
 ) -> str:
-    """Generate a response using OpenAI Responses API.
+    """Generate a response using OpenAI Chat Completions API.
 
     Args:
         client: OpenAI client instance
@@ -53,21 +53,21 @@ def generate_response(
         Generated response text
     """
     model = model or DEFAULT_MODEL
-    input_messages = [
+    messages = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": user_message},
     ]
 
     if assistant_prefix:
-        input_messages.append({"role": "assistant", "content": assistant_prefix})
+        messages.append({"role": "assistant", "content": assistant_prefix})
 
-    response = client.responses.create(
+    response = client.chat.completions.create(
         model=model,
-        input=input_messages,
+        messages=messages,
         temperature=temperature,
     )
 
-    return response.output_text
+    return response.choices[0].message.content
 
 
 async def generate_single_answer(
