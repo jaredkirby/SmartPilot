@@ -21,6 +21,7 @@ classifiers = [
 dependencies = [
     "openai>=1.82.0",
     "python-dotenv>=1.0.1",
+    "rich>=13.9.3",
     "tqdm>=4.67.1",
 ]
 

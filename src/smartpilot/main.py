@@ -2,10 +2,23 @@
 
 import asyncio
 import os
-from typing import Optional
+from typing import Any, Callable, Optional
 
 from dotenv import load_dotenv
 from openai import OpenAI
+from rich import box
+from rich.console import Console
+from rich.markdown import Markdown
+from rich.panel import Panel
+from rich.prompt import IntPrompt, Prompt
+from rich.progress import (
+    BarColumn,
+    Progress,
+    SpinnerColumn,
+    TextColumn,
+    TimeElapsedColumn,
+)
+from rich.table import Table
 from tqdm import tqdm
 
 from .prompts import (
@@ -21,6 +34,9 @@ load_dotenv()
 
 # Default model - GPT-5 Mini
 DEFAULT_MODEL = "gpt-4.1-mini"
+
+StageReporter = Callable[[str], None]
+ProgressCallback = Callable[[int, int], None]
 
 
 def get_client() -> OpenAI:
@@ -113,6 +129,8 @@ async def generate_multiple_initial_answers(
     question: str,
     n: int,
     model: Optional[str] = None,
+    use_tqdm: bool = True,
+    progress_callback: Optional[ProgressCallback] = None,
 ) -> list[str]:
     """Generate multiple initial answers to a question.
 
@@ -120,6 +138,8 @@ async def generate_multiple_initial_answers(
         question: The question to answer
         n: Number of answers to generate
         model: Model to use
+        use_tqdm: Whether to display a tqdm progress bar
+        progress_callback: Optional callback for reporting progress externally
 
     Returns:
         List of generated answers
@@ -129,11 +149,21 @@ async def generate_multiple_initial_answers(
 
     tasks = [generate_single_answer(client, question, model) for _ in range(n)]
 
-    with tqdm(total=n, desc="Generating answers") as pbar:
+    pbar = tqdm(total=n, desc="Generating answers") if use_tqdm else None
+
+    try:
         for future in asyncio.as_completed(tasks):
             answer = await future
             answer_list.append(answer)
-            pbar.update(1)
+
+            if progress_callback:
+                progress_callback(len(answer_list), n)
+
+            if pbar:
+                pbar.update(1)
+    finally:
+        if pbar:
+            pbar.close()
 
     return answer_list
 
@@ -205,7 +235,6 @@ def resolve_answers(
     Returns:
         Resolved/improved answers
     """
-    print("Resolving Initial Answers Based on Analysis...")
     client = get_client()
 
     # Format original answers
@@ -259,7 +288,6 @@ def select_answer(
     Returns:
         Selected best answer with justification
     """
-    print("Selecting Best Answer...")
     client = get_client()
 
     user_message = f"""\
@@ -295,29 +323,42 @@ async def run_smartpilot(
     question: str,
     n: int = 3,
     model: Optional[str] = None,
-) -> dict[str, any]:
+    reporter: Optional[StageReporter] = None,
+    progress_callback: Optional[ProgressCallback] = None,
+) -> dict[str, Any]:
     """Run the complete SmartPilot pipeline.
 
     Args:
         question: The question to answer
         n: Number of initial answers to generate
         model: Model to use
+        reporter: Optional callback for reporting stage updates
+        progress_callback: Optional callback for reporting generation progress
 
     Returns:
         Dictionary containing all pipeline outputs
     """
-    # Step 1: Generate multiple answers
-    print(f"Generating {n} initial answers...")
-    answer_list = await generate_multiple_initial_answers(question, n, model)
 
-    # Step 2: Analyze answers
-    print("Analyzing answers...")
+    def report(stage: str) -> None:
+        if reporter:
+            reporter(stage)
+
+    report("Generating initial answers")
+    answer_list = await generate_multiple_initial_answers(
+        question,
+        n,
+        model,
+        use_tqdm=progress_callback is None,
+        progress_callback=progress_callback,
+    )
+
+    report("Analyzing answers")
     analysis = analyze_answers(question, answer_list, model)
 
-    # Step 3: Resolve answers
+    report("Resolving answers")
     resolved_answers = resolve_answers(question, answer_list, analysis, model)
 
-    # Step 4: Select best answer
+    report("Selecting best answer")
     selected_answer = select_answer(question, resolved_answers, model)
 
     return {
@@ -329,62 +370,148 @@ async def run_smartpilot(
     }
 
 
+def _render_header(console: Console) -> None:
+    """Display a stylized SmartPilot header."""
+    console.print(
+        Panel.fit(
+            "[bold magenta]SmartPilot[/bold magenta]\n[white]AI-powered multi-answer reasoning[/white]",
+            border_style="magenta",
+        )
+    )
+
+
+def _prompt_user_inputs(console: Console) -> tuple[str, int]:
+    """Prompt the user for a question and number of answers."""
+    question = Prompt.ask("[bold cyan]What question should SmartPilot tackle?[/]").strip()
+    while not question:
+        console.print("[red]Please enter a question to continue.[/]")
+        question = Prompt.ask("[bold cyan]What question should SmartPilot tackle?[/]").strip()
+
+    attempts = 0
+    while True:
+        try:
+            n = IntPrompt.ask(
+                "[bold cyan]How many initial answers should we craft?[/] (1-10)",
+                default=3,
+            )
+            if 1 <= n <= 10:
+                return question, n
+            console.print("[yellow]Choose a value between 1 and 10.[/]")
+        except ValueError:
+            attempts += 1
+            console.print("[red]Please provide a number.[/]")
+            if attempts >= 3:
+                console.print("[yellow]Falling back to 3 answers.[/]")
+                return question, 3
+
+
+def _display_results(console: Console, result: dict[str, Any]) -> None:
+    """Pretty-print SmartPilot outputs."""
+    console.print(
+        Panel(
+            Markdown(f"**Question**\n\n{result['question']}"),
+            border_style="cyan",
+            title="Prompt",
+        )
+    )
+
+    table = Table(
+        title="Initial Answers",
+        box=box.ROUNDED,
+        show_lines=True,
+        expand=True,
+    )
+    table.add_column("Option", style="bold cyan", width=12, no_wrap=True)
+    table.add_column("Outline", style="white")
+
+    for idx, answer in enumerate(result["initial_answers"], start=1):
+        snippet = answer.strip()
+        if len(snippet) > 800:
+            snippet = snippet[:800].rstrip() + "..."
+        table.add_row(f"Answer {idx}", snippet or "[dim]No content[/dim]")
+
+    console.print(table)
+
+    console.print(
+        Panel(
+            Markdown(result["analysis"]),
+            title="Analysis",
+            border_style="yellow",
+        )
+    )
+
+    console.print(
+        Panel(
+            Markdown(result["resolved_answers"]),
+            title="Resolved Answers",
+            border_style="blue",
+        )
+    )
+
+    console.print(
+        Panel(
+            Markdown(result["selected_answer"]),
+            title="Selected Answer",
+            border_style="green",
+        )
+    )
+
+
 def main() -> None:
     """Main entry point for CLI usage."""
     import sys
 
-    print("=" * 60)
-    print("SmartPilot - AI-Powered Question Answering")
-    print("=" * 60)
-    print()
+    console = Console()
+    _render_header(console)
+    question, n = _prompt_user_inputs(console)
+    console.print()
 
-    question = input("What is your question? ").strip()
-    if not question:
-        print("Error: Please provide a question.")
-        sys.exit(1)
+    status = console.status("[bold cyan]Preparing SmartPilot...[/]", spinner="dots")
+    status.start()
 
     try:
-        n = int(input("How many initial answers to generate? [3]: ").strip() or "3")
-        if n < 1 or n > 10:
-            print("Number of answers must be between 1 and 10.")
-            sys.exit(1)
-    except ValueError:
-        print("Invalid number. Using default of 3.")
-        n = 3
+        with Progress(
+            SpinnerColumn(style="magenta"),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(bar_width=None),
+            TextColumn("{task.completed}/{task.total}", style="cyan"),
+            TimeElapsedColumn(),
+            console=console,
+        ) as progress:
+            progress_task = progress.add_task("[cyan]Generating answers", total=n)
+            progress_task_active = True
 
-    print()
+            def progress_callback(completed: int, total: int) -> None:
+                progress.update(progress_task, completed=completed, total=total)
 
-    try:
-        result = asyncio.run(run_smartpilot(question, n))
+            def reporter(stage: str) -> None:
+                nonlocal progress_task_active
+                status.update(f"[bold cyan]{stage}[/]")
+                console.log(f"[bold cyan]{stage}[/]")
+                if progress_task_active and stage != "Generating initial answers":
+                    progress.remove_task(progress_task)
+                    progress_task_active = False
 
-        print("\n" + "=" * 60)
-        print("RESULTS")
-        print("=" * 60)
-
-        print("\n### Initial Answers Generated:")
-        for i, answer in enumerate(result["initial_answers"], 1):
-            print(f"\n--- Answer {i} ---")
-            print(answer[:500] + "..." if len(answer) > 500 else answer)
-
-        print("\n### Analysis:")
-        print(result["analysis"][:1000] + "..." if len(result["analysis"]) > 1000 else result["analysis"])
-
-        print("\n### Resolved Answers:")
-        print(
-            result["resolved_answers"][:1000] + "..."
-            if len(result["resolved_answers"]) > 1000
-            else result["resolved_answers"]
-        )
-
-        print("\n### Selected Best Answer:")
-        print(result["selected_answer"])
-
-    except ValueError as e:
-        print(f"Configuration error: {e}")
+            result = asyncio.run(
+                run_smartpilot(
+                    question,
+                    n,
+                    reporter=reporter,
+                    progress_callback=progress_callback,
+                )
+            )
+    except ValueError as exc:
+        status.stop()
+        console.print(Panel(str(exc), title="Configuration Error", border_style="red"))
         sys.exit(1)
-    except Exception as e:
-        print(f"Error: {e}")
+    except Exception as exc:
+        status.stop()
+        console.print(Panel(str(exc), title="SmartPilot Error", border_style="red"))
         sys.exit(1)
+
+    status.stop()
+    console.rule("[bold green]SmartPilot Results")
+    _display_results(console, result)
 
 
 if __name__ == "__main__":
