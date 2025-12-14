@@ -110,7 +110,7 @@ Format your response as a clear outline in Markdown.
 """
 
     # Run in executor to make it async
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     result = await loop.run_in_executor(
         None,
         lambda: generate_response(
