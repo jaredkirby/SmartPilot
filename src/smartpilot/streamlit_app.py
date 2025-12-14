@@ -9,7 +9,13 @@ from smartpilot.main import run_smartpilot
 
 def run_async(coro):
     """Run async function in streamlit context."""
-    return asyncio.run(coro)
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        # No running event loop
+        return asyncio.run(coro)
+    else:
+        return loop.run_until_complete(coro)
 
 
 def main():
