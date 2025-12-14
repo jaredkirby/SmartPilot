@@ -161,7 +161,7 @@ class TestSelectAnswer:
         assert "Resolved answer content" in user_message
 
 
-class TestRunSmartpilot:
+class TestRunSmartPilot:
     """Test the full SmartPilot pipeline."""
 
     @pytest.mark.asyncio
