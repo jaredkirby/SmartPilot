@@ -1,6 +1,5 @@
 """Tests for SmartPilot prompts module."""
 
-import pytest
 
 from smartpilot.prompts import (
     ANALYZE_SYSTEM,
