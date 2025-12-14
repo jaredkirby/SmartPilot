@@ -20,8 +20,8 @@ class TestConfiguration:
     """Test configuration and setup."""
 
     def test_default_model_is_gpt5_mini(self):
-        """Test that default model is set to GPT-5 Mini equivalent."""
-        assert DEFAULT_MODEL == "gpt-4.1-mini"
+        """Test that default model is set to GPT-4o Mini equivalent."""
+        assert DEFAULT_MODEL == "gpt-4o-mini"
 
     def test_get_client_raises_without_api_key(self):
         """Test that get_client raises error when API key is not set."""
