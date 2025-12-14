@@ -1,6 +1,6 @@
 # SmartPilot
 
-SmartPilot is an AI-powered question answering system that generates, analyzes, and selects the best answer to a given question. It leverages OpenAI's Chat Completions API with GPT-4.1 Mini to provide high-quality, reliable, and accurate responses through a multi-step reasoning pipeline.
+SmartPilot is an AI-powered question answering system that generates, analyzes, and selects the best answer to a given question. It leverages OpenAI's Chat Completions API with GPT-4 Turbo to provide high-quality, reliable, and accurate responses through a multi-step reasoning pipeline.
 
 ## Overview
 
